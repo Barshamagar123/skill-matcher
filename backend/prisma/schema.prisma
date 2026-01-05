@@ -12,3 +12,55 @@ datasource db {
   provider = "mysql"
   url = env("DATABASE_URL")
 }
+model User {
+  id              String    @id @default(cuid())
+  
+  // Authentication
+  email           String    @unique
+  password        String
+  role            Role      @default(YOUTH)
+  isVerified      Boolean   @default(false)
+  profileComplete Boolean   @default(false)
+  
+  // Account verification & recovery
+  verificationToken String?
+  verificationTokenExpiry DateTime?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  
+  // Timestamps
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  refreshTokens RefreshToken[]
+
+  // Other relations (will be added later)
+  // youthProfile    YouthProfile?
+  // employerProfile EmployerProfile?
+  // applications    Application[]
+  // chatbotSessions ChatbotSession[]
+  // notifications   Notification[]
+  
+  @@map("users")
+}
+
+// ============ ENUMS ============
+enum Role {
+  YOUTH
+  EMPLOYER
+  ADMIN
+}
+
+// ============ TOKEN MODEL (for refresh tokens) ============
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@map("refresh_tokens")
+}
