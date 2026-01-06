@@ -56,11 +56,12 @@ enum Role {
 // ============ TOKEN MODEL (for refresh tokens) ============
 model RefreshToken {
   id          String   @id @default(cuid())
-  token       String   @unique
+  token       String   @db.VarChar(500)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
-  
+
+  @@unique([token])
   @@map("refresh_tokens")
 }
