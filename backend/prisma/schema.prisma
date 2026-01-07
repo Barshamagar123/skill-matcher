@@ -35,6 +35,7 @@ model User {
 
   // Relations
   refreshTokens RefreshToken[]
+  jobs           Job[]
 
   // Other relations (will be added later)
   // youthProfile    YouthProfile?
@@ -64,4 +65,19 @@ model RefreshToken {
 
   @@unique([token])
   @@map("refresh_tokens")
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  requiredSkills String
+  location       String?
+  jobType        String?
+  employerId     String
+  createdAt      DateTime @default(now())
+
+  employer User @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  @@map("jobs")
 }
