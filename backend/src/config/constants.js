@@ -1,7 +1,7 @@
 const config = {
   JWT_SECRET: process.env.JWT_SECRET || 'your-default-secret-key-min-32-chars',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-min-32-chars',
-  PORT: process.env.PORT || 5000,
+  PORT: process.env.PORT || 3006,
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
   
   // Token expiration times (in seconds)

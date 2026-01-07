@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+
 import authRoutes from './src/routes/authRoutes.js';
 import { notFound, errorHandler } from './src/middleware/errorMiddleware.js';
 import config from './src/config/constants.js';
@@ -42,12 +43,5 @@ app.use(notFound);
 
 // Global error handler
 app.use(errorHandler);
-
-// Start server
-const PORT = config.PORT;
-
-app.listen(3000,()=>{
-  console.log("backend has started at port number 3000");
-})
 
 export default app;
