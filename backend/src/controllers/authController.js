@@ -3,10 +3,10 @@ import { validateRegistration, validateLogin } from '../utils/validators.js';
 import { successResponse, errorResponse, validationError } from '../utils/response.js';
 
 export class AuthController {
-  // Register User
+  // Register User with optional profile fields
   static async register(req, res) {
     try {
-      const { email, password, role } = req.body;
+      const { email, password, role, name, phone, location } = req.body;
 
       // Validate input
       const validation = validateRegistration(req.body);
@@ -14,8 +14,15 @@ export class AuthController {
         return validationError(res, validation.errors);
       }
 
-      // Register user
-      const result = await AuthService.register({ email, password, role });
+      // Register user with optional profile data
+      const result = await AuthService.register({ 
+        email, 
+        password, 
+        role,
+        name,
+        phone,
+        location 
+      });
 
       return successResponse(
         res,
@@ -23,6 +30,7 @@ export class AuthController {
         {
           user: result.user,
           accessToken: result.tokens.accessToken,
+          refreshToken: result.tokens.refreshToken,
         },
         201
       );
@@ -89,7 +97,7 @@ export class AuthController {
     }
   }
 
-  // Get Current User
+  // Get Current User (using AuthService for now)
   static async getCurrentUser(req, res) {
     try {
       const userId = req.user.userId;

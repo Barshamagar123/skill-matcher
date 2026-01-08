@@ -27,7 +27,19 @@ model User {
   verificationTokenExpiry DateTime?
   resetToken        String?
   resetTokenExpiry  DateTime?
-  
+   
+    name            String?
+  phone           String?
+  bio             String?        @db.Text
+  location        String?
+  experienceLevel ExperienceLevel?
+  education       String? 
+
+    // Skills & Interests (for cosine similarity)
+  skills          String         @default("[]")   // JSON array: ["JavaScript", "React", "Python"]
+  skillVector     String?        @db.Text         // JSON array for embeddings
+  interests       String         @default("[]")   // JSON array
+
   // Timestamps
   lastLogin     DateTime?
   createdAt     DateTime  @default(now())
@@ -35,14 +47,11 @@ model User {
 
   // Relations
   refreshTokens RefreshToken[]
-  jobs           Job[]
-
-  // Other relations (will be added later)
-  // youthProfile    YouthProfile?
-  // employerProfile EmployerProfile?
-  // applications    Application[]
-  // chatbotSessions ChatbotSession[]
-  // notifications   Notification[]
+  jobs           Job[]          @relation("EmployerJobs")
+  companyProfile CompanyProfile?
+  applications   Application[]
+  chatSessions   ChatSession[]
+  notifications  Notification[]
   
   @@map("users")
 }
@@ -52,6 +61,152 @@ enum Role {
   YOUTH
   EMPLOYER
   ADMIN
+}
+model CompanyProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName  String
+  description  String?  @db.Text
+  website      String?
+  industry     String?
+  companySize  CompanySize?
+  logo         String?
+  foundedYear  Int?
+  address      String?
+  linkedin     String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("company_profiles")
+}
+
+model Job {
+  id             String        @id @default(cuid())
+  
+  // Employer info
+  employerId     String
+  employer       User          @relation("EmployerJobs", fields: [employerId], references: [id], onDelete: Cascade)
+  
+  // Job details
+  title          String
+  description    String        @db.Text
+  jobType        JobType
+  location       String?
+  salaryMin      Int?
+  salaryMax      Int?
+  experienceReq  ExperienceLevel?
+  deadline       DateTime?
+  
+  // Skills for AI matching
+  requiredSkills String        @default("[]")   // JSON array
+  skillVector    String?       @db.Text         // JSON array for cosine similarity
+  
+  // Job status
+  isActive       Boolean       @default(true)
+  views          Int           @default(0)
+  
+  // Timestamps
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  applications   Application[]
+
+  @@map("jobs")
+}
+
+// ============ APPLICATION MODELS ============
+model Application {
+  id                      String     @id @default(cuid())
+  
+  // User & Job reference
+  userId                  String
+  user                    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId                   String
+  job                     Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Application content
+  coverLetter            String?     @db.Text
+  resumeUrl             String?
+  
+  // AI Matching Results (Cosine Similarity)
+  matchPercentage         Float      // 0-100 from cosine similarity
+  skillGap                String     @default("[]")       // JSON array
+  learningRecommendations String     @default("[]")       // JSON array
+  
+  // Application status
+  status                  AppStatus  @default(PENDING)
+  appliedAt               DateTime   @default(now())
+  reviewedAt              DateTime?
+  
+  // Employer notes
+  employerNotes          String?     @db.Text
+
+  @@unique([userId, jobId])
+  @@index([jobId])
+  @@index([userId])
+  @@index([matchPercentage])
+  
+  @@map("applications")
+}
+// ============ AI & LEARNING MODELS ============
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   @default("Career Assistant Chat")
+  messages  Json     // Store chat history as JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("chat_sessions")
+}
+model LearningResource {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  url         String
+  skill       String   // Skill this resource teaches
+  level       ResourceLevel @default(BEGINNER)
+  type        ResourceType  @default(COURSE)
+  duration    String?
+  free        Boolean  @default(false)
+  aiGenerated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([skill])
+  @@map("learning_resources")
+}
+
+model CareerPath {
+  id          String   @id @default(cuid())
+  title       String   // e.g., "Frontend Developer"
+  description String   @db.Text
+  steps       Json     // JSON array of step objects
+  skills      String   @default("[]") // JSON array of required skills
+  duration    String?  // e.g., "6 months"
+  difficulty  String?  // BEGINNER, INTERMEDIATE, ADVANCED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("career_paths")
+}
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String   @db.Text
+  type      NotificationType
+  read      Boolean  @default(false)
+  data      Json?    // Extra data as JSON
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
 }
 
 // ============ TOKEN MODEL (for refresh tokens) ============
@@ -67,17 +222,60 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model Job {
-  id             String   @id @default(cuid())
-  title          String
-  description    String
-  requiredSkills String
-  location       String?
-  jobType        String?
-  employerId     String
-  createdAt      DateTime @default(now())
+enum ExperienceLevel {
+  ENTRY
+  JUNIOR
+  MID
+  SENIOR
+  EXPERT
+}
 
-  employer User @relation(fields: [employerId], references: [id], onDelete: Cascade)
+enum CompanySize {
+  STARTUP
+  SMALL
+  MEDIUM
+  LARGE
+  ENTERPRISE
+}
 
-  @@map("jobs")
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  CONTRACT
+  FREELANCE
+  REMOTE
+}
+
+enum AppStatus {
+  PENDING
+  REVIEWED
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+  WITHDRAWN
+}
+
+enum ResourceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum ResourceType {
+  COURSE
+  TUTORIAL
+  ARTICLE
+  VIDEO
+  BOOK
+  BOOTCAMP
+  CERTIFICATION
+}
+
+enum NotificationType {
+  APPLICATION_UPDATE
+  JOB_MATCH
+  NEW_JOB
+  MESSAGE
+  SYSTEM
 }

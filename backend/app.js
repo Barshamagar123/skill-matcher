@@ -3,6 +3,8 @@ import cors from 'cors';
 import 'dotenv/config';
 
 import authRoutes from './src/routes/authRoutes.js';
+import userRoutes from './src/routes/userRoutes.js';
+import jobRoutes from './src/routes/jobRoutes.js';
 import { notFound, errorHandler } from './src/middleware/errorMiddleware.js';
 import config from './src/config/constants.js';
 
@@ -37,7 +39,8 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
-
+app.use('/api/users', userRoutes);  // Add this line
+app.use('/api/jobs', jobRoutes);
 // 404 handler
 app.use(notFound);
 

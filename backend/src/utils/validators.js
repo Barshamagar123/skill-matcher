@@ -12,6 +12,12 @@ export const validatePassword = (password) => {
   return config.PASSWORD_REGEX.test(password);
 };
 
+export const validatePhone = (phone) => {
+  // Simple phone validation for Nepal
+  const phoneRegex = /^(\+?977)?[0-9]{10}$/;
+  return phoneRegex.test(phone.replace(/[\s\-]/g, ''));
+};
+
 export const validateRegistration = (data) => {
   const errors = {};
 
@@ -21,6 +27,10 @@ export const validateRegistration = (data) => {
 
   if (!data.password || !validatePassword(data.password)) {
     errors.password = 'Password must be at least 8 characters with uppercase, lowercase, and number';
+  }
+
+  if (data.phone && !validatePhone(data.phone)) {
+    errors.phone = 'Please provide a valid Nepali phone number (10 digits)';
   }
 
   if (data.role && !['YOUTH', 'EMPLOYER', 'ADMIN'].includes(data.role)) {

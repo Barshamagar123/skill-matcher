@@ -1,4 +1,4 @@
-import prisma from '../config/db.js';
+import prisma from '../config/prisma.js';
 import {
   hashPassword,
   comparePassword,
@@ -9,7 +9,7 @@ import {
 } from '../utils/tokens.js';
 
 export class AuthService {
-  // Register new user
+  // Register new user WITH profile fields
   static async register(userData) {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -23,17 +23,32 @@ export class AuthService {
     // Hash password
     const hashedPassword = await hashPassword(userData.password);
 
-    // Create user (NO verification tokens)
+    // Prepare user data
+    const userCreateData = {
+      email: userData.email,
+      password: hashedPassword,
+      role: userData.role || 'YOUTH',
+      isVerified: true, // Auto-verify for hackathon
+      profileComplete: false, // Will be true when they add profile info
+    };
+
+    // Add optional profile fields if provided during registration
+    if (userData.name) userCreateData.name = userData.name;
+    if (userData.phone) userCreateData.phone = userData.phone;
+    if (userData.location) userCreateData.location = userData.location;
+
+    // Create user
     const user = await prisma.user.create({
-      data: {
-        email: userData.email,
-        password: hashedPassword,
-        role: userData.role || 'YOUTH',
-      },
+      data: userCreateData,
       select: {
         id: true,
         email: true,
         role: true,
+        name: true,
+        phone: true,
+        location: true,
+        isVerified: true,
+        profileComplete: true,
         createdAt: true,
       },
     });
@@ -60,7 +75,7 @@ export class AuthService {
     };
   }
 
-  // Login user
+  // Login user with full profile data
   static async login(email, password) {
     // Find user
     const user = await prisma.user.findUnique({
@@ -96,13 +111,24 @@ export class AuthService {
       },
     });
 
-    // Return user data without password
+    // Return complete user data
     const userData = {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
+      phone: user.phone,
+      location: user.location,
+      bio: user.bio,
+      experienceLevel: user.experienceLevel,
+      education: user.education,
+      isVerified: user.isVerified,
+      profileComplete: user.profileComplete,
       lastLogin: user.lastLogin,
       createdAt: user.createdAt,
+      // Parse JSON fields
+      skills: user.skills ? JSON.parse(user.skills) : [],
+      interests: user.interests ? JSON.parse(user.interests) : [],
     };
 
     return {
@@ -156,17 +182,12 @@ export class AuthService {
     });
   }
 
-  // Get current user
+  // Get current user with complete profile
   static async getCurrentUser(userId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        companyProfile: true,
       },
     });
 
@@ -174,10 +195,33 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    return user;
+    // Format response
+    const userData = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      phone: user.phone,
+      bio: user.bio,
+      location: user.location,
+      experienceLevel: user.experienceLevel,
+      education: user.education,
+      isVerified: user.isVerified,
+      profileComplete: user.profileComplete,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      // Parse JSON fields
+      skills: user.skills ? JSON.parse(user.skills) : [],
+      interests: user.interests ? JSON.parse(user.interests) : [],
+      // Include company profile for employers
+      companyProfile: user.companyProfile,
+    };
+
+    return userData;
   }
 
-  // Update user profile
+  // Update user profile (moved to UserService, kept for compatibility)
   static async updateProfile(userId, data) {
     const user = await prisma.user.update({
       where: { id: userId },
